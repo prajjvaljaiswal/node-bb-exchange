@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(../arch_plan_raw.txt)",
+      "Read(../plans/**)",
+      "Read(../BASE_CONTEXT.md)",
+      "Read(../PROJECT_CONTEXT.md)",
+      "Read(../PORTAL_CAPABILITIES.md)",
+      "Read(../SYNC_RULES.md)",
+      "Read(../SESSION_LOG.md)",
+      "Read(../UI_STATE.md)",
+      "Read(../frontend/**)",
+      "Write(../API_CONTRACTS.md)",
+      "Write(../WS_PROTOCOL.md)",
+      "Write(../SCHEMA_STATE.md)",
+      "Write(../PROJECT_CONTEXT.md)",
+      "Write(../PORTAL_CAPABILITIES.md)",
+      "Write(../SESSION_LOG.md)"
+    ],
+    "rules": [
+      "Read BASE_CONTEXT.md + PROJECT_CONTEXT.md at the start of every session",
+      "Read the relevant contract file before touching any endpoint, event, or schema",
+      "Update API_CONTRACTS.md when any route or response shape changes",
+      "Update WS_PROTOCOL.md when any Socket.IO event changes",
+      "Update SCHEMA_STATE.md when any Prisma model or Redis key changes",
+      "Update PORTAL_CAPABILITIES.md backend column when feature status changes",
+      "Append to PROJECT_CONTEXT.md file change log after every change",
+      "Append to SESSION_LOG.md before ending every session",
+      "Never modify frontend source files",
+      "Never contradict arch_plan_raw.txt without flagging it explicitly"
+    ]
+  }
+}
