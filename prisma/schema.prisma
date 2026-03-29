@@ -1,0 +1,665 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLATFORM_ADMIN
+  BLOOD_BANK_ADMIN
+  DONOR
+  PATIENT
+}
+
+enum AuthStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+  DENIED
+}
+
+enum DonorCardStatus {
+  ISSUED
+  IN_WHOLE_BLOOD
+  IN_PRBC
+  RESERVED
+  TRANSFERRED
+  USED
+  EXPIRED
+}
+
+enum TTIStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
+enum WholeBloodStatus {
+  PENDING_TESTING
+  READY_FOR_SEPARATION
+  SEPARATED
+  FAILED_TTI
+  EXPIRED
+}
+
+enum PRBCStatus {
+  AVAILABLE
+  RESERVED
+  TRANSFERRED
+  USED
+  DAMAGED
+  EXPIRED
+}
+
+enum TransferType {
+  INTERNAL
+  EXTERNAL_ONE_TO_ONE
+  EXTERNAL_MANY_TO_ONE
+  EXTERNAL_MANY_TO_MANY
+}
+
+enum BalanceEntryType {
+  RECEIVABLE
+  DELIVERABLE
+}
+
+enum BalanceEntryStatus {
+  ACTIVE
+  SETTLED
+  CANCELLED
+}
+
+enum PatientStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  FULFILLED
+  EXPIRED
+}
+
+enum TransferFormAStatus {
+  SENT
+  ACKNOWLEDGED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  FULFILLED
+}
+
+enum TransferFormBStatus {
+  ISSUED
+  IN_TRANSIT
+  DELIVERED
+  DISCREPANCY
+}
+
+enum ExchangeType {
+  BILATERAL
+  UNILATERAL
+}
+
+enum ExchangeStatus {
+  PROPOSED
+  CONSENTED
+  EXECUTED
+  REJECTED
+}
+
+enum PaymentType {
+  PATIENT_REGISTRATION
+  TRANSFER_FEE
+  CYCLE_REFUND
+  PRBC_FEE
+  SERVICE_CHARGE
+}
+
+enum PaymentStatus {
+  CREATED
+  CAPTURED
+  REFUNDED
+  FAILED
+}
+
+enum ModeOfPayment {
+  ONLINE
+  CASH
+  CHEQUE
+  NEFT
+}
+
+enum UrgencyLevel {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  role            Role
+  isEmailVerified Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  emailVerifyToken String?
+  passwordResetToken String?
+  passwordResetExpiry DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  refreshTokens   RefreshToken[]
+  bloodBankAdmin  BloodBankAdmin?
+  donor           Donor?
+  patient         Patient?
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  payments        Payment[]      @relation("SenderPayments")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model BloodBank {
+  id                    String    @id @default(uuid())
+  name                  String
+  registrationNo        String    @unique
+  registrationValidUpto DateTime
+  gstNo                 String?
+  address               String
+  city                  String
+  district              String
+  state                 String
+  pincode               String
+  contactMobile         String
+  email                 String    @unique
+  bankAccountName       String?
+  bankAccountIFSC       String?
+  bankAccountUPI        String?
+  isActive              Boolean   @default(false)
+  approvedBy            String?
+  approvedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  admins                BloodBankAdmin[]
+  groupMemberships      BloodBankGroupMember[]
+  donorCards            DonorCard[]
+  wholeBloodInventory   WholeBloodInventory[]
+  prbcInventory         PRBCInventory[]
+  balanceReceivables    BalanceSheetEntry[]   @relation("CreditorBank")
+  balanceDeliverables   BalanceSheetEntry[]   @relation("DebtorBank")
+  donationsHere         DonationEvent[]       @relation("DonatingBank")
+  donationsBeneficiary  DonationEvent[]       @relation("BeneficiaryBank")
+  transfersRequested    TransferFormA[]       @relation("RecipientBank")
+  transfersSupplied     TransferFormA[]       @relation("SupplierBank")
+  formBSupplied         TransferFormB[]       @relation("FormBSupplier")
+  formBReceived         TransferFormB[]       @relation("FormBRecipient")
+  patients              Patient[]
+  payments              Payment[]             @relation("ReceiverBankPayments")
+  digitalExchanges      DigitalExchangeEvent[] @relation("InitiatingBank")
+  recommendationNodes   RecommendationNode[]
+
+  @@map("blood_banks")
+}
+
+model BloodBankAdmin {
+  id          String     @id @default(uuid())
+  userId      String     @unique
+  bloodBankId String
+  name        String
+  designation String
+  mobile      String
+  authStatus  AuthStatus @default(PENDING)
+  isPrimary   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bloodBank   BloodBank  @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+  formARequests TransferFormA[]
+  formBIssued   TransferFormB[]
+  donationsLogged DonationEvent[] @relation("StaffAdmin")
+
+  @@map("blood_bank_admins")
+}
+
+model BloodBankGroup {
+  id        String   @id @default(uuid())
+  name      String
+  city      String
+  state     String
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   BloodBankGroupMember[]
+
+  @@map("blood_bank_groups")
+}
+
+model BloodBankGroupMember {
+  id          String       @id @default(uuid())
+  groupId     String
+  bloodBankId String
+  status      MemberStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  group      BloodBankGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  bloodBank  BloodBank      @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, bloodBankId])
+  @@map("blood_bank_group_members")
+}
+
+model Donor {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  name            String
+  age             Int
+  sex             String
+  nationality     String   @default("Indian")
+  mobile          String
+  email           String
+  weight          Float
+  bloodGroup      String
+  address         String
+  state           String
+  pincode         String
+  bankAccountName String?
+  bankAccountIFSC String?
+  bankAccountUPI  String?
+  lastDonationAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  donorCards  DonorCard_Donor[]
+  donations   DonationEvent[]
+  payments    Payment[]
+
+  @@map("donors")
+}
+
+model Patient {
+  id                   String        @id @default(uuid())
+  userId               String        @unique
+  patientDisplayId     String        @unique
+  name                 String
+  age                  Int
+  sex                  String
+  bloodGroup           String
+  unitsRequired        Int
+  hospitalName         String
+  doctorName           String
+  disease              String?
+  contactPerson1       String?
+  contactPerson2       String?
+  contactPerson3       String?
+  mobile               String
+  email                String
+  modeOfPayment        ModeOfPayment @default(ONLINE)
+  bankAccountName      String?
+  bankAccountIFSC      String?
+  bankAccountUPI       String?
+  registrationFeePaid  Boolean       @default(false)
+  registeredBloodBankId String?
+  status               PatientStatus @default(PENDING_PAYMENT)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registeredBloodBank  BloodBank?    @relation(fields: [registeredBloodBankId], references: [id])
+  donorCards           DonorCard[]   @relation("ReservedForPatient")
+  prbcReservations     PRBCInventory[] @relation("ReservedForPatient")
+  donations            DonationEvent[]
+  formARequests        TransferFormA[]
+  payments             Payment[]
+  recommendationNodes  RecommendationNode[]
+  balanceEntries       BalanceSheetEntry[]
+
+  @@map("patients")
+}
+
+model DonorCard {
+  id                         String          @id @default(uuid())
+  donorCardDisplayId         String          @unique
+  donorId                    String
+  donorName                  String
+  bloodBankId                String
+  bloodBankName              String
+  bloodBankAuthoritySignature String?
+  bloodGroup                 String
+  bloodUnitNo                String          @unique
+  dateOfCollection           DateTime
+  organisationOfDrive        String?
+  status                     DonorCardStatus @default(ISSUED)
+  reservedForPatientId       String?
+  reservedAt                 DateTime?
+  reservedUntil              DateTime?
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
+  donorLink            DonorCard_Donor?
+  bloodBank            BloodBank        @relation(fields: [bloodBankId], references: [id])
+  reservedForPatient   Patient?         @relation("ReservedForPatient", fields: [reservedForPatientId], references: [id])
+  wholeBlood           WholeBloodInventory?
+  prbc                 PRBCInventory?
+  balanceEntries       BalanceSheetEntry[]
+  donationEvent        DonationEvent?
+  recommendationNodes  RecommendationNode[]
+
+  @@index([bloodBankId, status])
+  @@map("donor_cards")
+}
+
+// Separate relation table to avoid circular reference
+model DonorCard_Donor {
+  donorCardId String    @id
+  donorId     String
+
+  donorCard   DonorCard @relation(fields: [donorCardId], references: [id], onDelete: Cascade)
+  donor       Donor     @relation(fields: [donorId], references: [id], onDelete: Cascade)
+
+  @@map("donor_card_donors")
+}
+
+model WholeBloodInventory {
+  id                String           @id @default(uuid())
+  donorCardId       String           @unique
+  bloodUnitNo       String
+  bloodGroup        String
+  dateOfCollection  DateTime
+  dateOfExpiration  DateTime
+  bloodBankId       String
+  ttiSyphilis       TTIStatus        @default(PENDING)
+  ttiMalaria        TTIStatus        @default(PENDING)
+  ttiHIV            TTIStatus        @default(PENDING)
+  ttiHBV            TTIStatus        @default(PENDING)
+  ttiHCV            TTIStatus        @default(PENDING)
+  dateOfTesting     DateTime?
+  status            WholeBloodStatus @default(PENDING_TESTING)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  donorCard  DonorCard @relation(fields: [donorCardId], references: [id])
+  bloodBank  BloodBank @relation(fields: [bloodBankId], references: [id])
+
+  @@map("whole_blood_inventory")
+}
+
+model PRBCInventory {
+  id                   String       @id @default(uuid())
+  donorCardId          String       @unique
+  bloodUnitNo          String
+  bloodGroup           String
+  dateOfDonation       DateTime
+  dateOfExpiration     DateTime
+  bloodBankId          String
+  bloodTestPassed      Boolean      @default(false)
+  isDamaged            Boolean      @default(false)
+  isInfected           Boolean      @default(false)
+  remarks              String?
+  transferType         TransferType @default(INTERNAL)
+  status               PRBCStatus   @default(AVAILABLE)
+  reservedForPatientId String?
+  priceINR             Int?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  donorCard          DonorCard  @relation(fields: [donorCardId], references: [id])
+  bloodBank          BloodBank  @relation(fields: [bloodBankId], references: [id])
+  reservedForPatient Patient?   @relation("ReservedForPatient", fields: [reservedForPatientId], references: [id])
+  transferFormBUnits TransferFormBUnit[]
+
+  @@index([bloodBankId, bloodGroup, status])
+  @@map("prbc_inventory")
+}
+
+model BalanceSheetEntry {
+  id                   String             @id @default(uuid())
+  creditorBankId       String
+  debtorBankId         String
+  donorCardId          String?
+  bloodGroup           String
+  units                Int                @default(1)
+  entryType            BalanceEntryType
+  status               BalanceEntryStatus @default(ACTIVE)
+  patientId            String?
+  originatingDonationId String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  creditorBank  BloodBank       @relation("CreditorBank", fields: [creditorBankId], references: [id])
+  debtorBank    BloodBank       @relation("DebtorBank", fields: [debtorBankId], references: [id])
+  donorCard     DonorCard?      @relation(fields: [donorCardId], references: [id])
+  patient       Patient?        @relation(fields: [patientId], references: [id])
+  donation      DonationEvent?  @relation(fields: [originatingDonationId], references: [id])
+
+  @@index([creditorBankId, status])
+  @@index([debtorBankId, status])
+  @@map("balance_sheet_entries")
+}
+
+model DonationEvent {
+  id                 String   @id @default(uuid())
+  donorId            String
+  donorCardId        String?  @unique
+  bloodBankId        String
+  beneficiaryBankId  String
+  patientId          String?
+  staffAdminId       String?
+  donationDate       DateTime
+  cycleDetected      Boolean  @default(false)
+  cycleRefundIssued  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  donor           Donor          @relation(fields: [donorId], references: [id])
+  donorCard       DonorCard?     @relation(fields: [donorCardId], references: [id])
+  bloodBank       BloodBank      @relation("DonatingBank", fields: [bloodBankId], references: [id])
+  beneficiaryBank BloodBank      @relation("BeneficiaryBank", fields: [beneficiaryBankId], references: [id])
+  patient         Patient?       @relation(fields: [patientId], references: [id])
+  staffAdmin      BloodBankAdmin? @relation("StaffAdmin", fields: [staffAdminId], references: [id])
+  balanceEntries  BalanceSheetEntry[]
+  payments        Payment[]
+
+  @@index([patientId])
+  @@map("donation_events")
+}
+
+model RecommendationNode {
+  id             String   @id @default(uuid())
+  forPatientId   String
+  forBloodBankId String
+  donorCardId    String?
+  hops           Int      @default(0)
+  chainPath      Json?
+  displayOrder   Int
+  createdAt      DateTime @default(now())
+
+  patient    Patient    @relation(fields: [forPatientId], references: [id])
+  bloodBank  BloodBank  @relation(fields: [forBloodBankId], references: [id])
+  donorCard  DonorCard? @relation(fields: [donorCardId], references: [id])
+
+  @@map("recommendation_nodes")
+}
+
+model TransferFormA {
+  id                String              @id @default(uuid())
+  formDisplayId     String              @unique
+  recipientBankId   String
+  supplierBankId    String
+  patientId         String?
+  bloodGroup        String
+  unitsRequested    Int
+  urgencyLevel      UrgencyLevel        @default(ROUTINE)
+  requestedByAdminId String
+  status            TransferFormAStatus @default(SENT)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  recipientBank      BloodBank          @relation("RecipientBank", fields: [recipientBankId], references: [id])
+  supplierBank       BloodBank          @relation("SupplierBank", fields: [supplierBankId], references: [id])
+  patient            Patient?           @relation(fields: [patientId], references: [id])
+  requestedByAdmin   BloodBankAdmin     @relation(fields: [requestedByAdminId], references: [id])
+  response           TransferFormAResponse?
+  formB              TransferFormB?
+  payments           Payment[]
+
+  @@index([supplierBankId, status])
+  @@map("transfer_form_a")
+}
+
+model TransferFormAResponse {
+  id                String              @id @default(uuid())
+  formAId           String              @unique
+  respondedByAdminId String
+  status            TransferFormAStatus
+  unitsCommitted    Int?
+  rejectionReason   String?
+  createdAt         DateTime            @default(now())
+
+  formA             TransferFormA      @relation(fields: [formAId], references: [id])
+
+  @@map("transfer_form_a_responses")
+}
+
+model TransferFormB {
+  id                  String             @id @default(uuid())
+  formDisplayId       String             @unique
+  formAId             String             @unique
+  supplierBankId      String
+  recipientBankId     String
+  issuedByAdminId     String
+  transportDetails    Json?
+  dispatchDate        DateTime?
+  expectedArrivalDate DateTime?
+  status              TransferFormBStatus @default(ISSUED)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  formA          TransferFormA        @relation(fields: [formAId], references: [id])
+  supplierBank   BloodBank            @relation("FormBSupplier", fields: [supplierBankId], references: [id])
+  recipientBank  BloodBank            @relation("FormBRecipient", fields: [recipientBankId], references: [id])
+  issuedByAdmin  BloodBankAdmin       @relation(fields: [issuedByAdminId], references: [id])
+  units          TransferFormBUnit[]
+  response       TransferFormBResponse?
+
+  @@map("transfer_form_b")
+}
+
+model TransferFormBUnit {
+  id          String @id @default(uuid())
+  formBId     String
+  prbcUnitId  String
+
+  formB    TransferFormB @relation(fields: [formBId], references: [id], onDelete: Cascade)
+  prbcUnit PRBCInventory @relation(fields: [prbcUnitId], references: [id])
+
+  @@map("transfer_form_b_units")
+}
+
+model TransferFormBResponse {
+  id                String   @id @default(uuid())
+  formBId           String   @unique
+  receivedByAdminId String
+  unitsReceived     Int
+  discrepancyNotes  String?
+  receivedAt        DateTime @default(now())
+
+  formB TransferFormB @relation(fields: [formBId], references: [id])
+
+  @@map("transfer_form_b_responses")
+}
+
+model DigitalExchangeEvent {
+  id                   String         @id @default(uuid())
+  exchangeType         ExchangeType
+  initiatedByBankId    String
+  participantBanks     String[]
+  balanceSheetChanges  Json?
+  status               ExchangeStatus @default(PROPOSED)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  initiatedByBank BloodBank @relation("InitiatingBank", fields: [initiatedByBankId], references: [id])
+
+  @@map("digital_exchange_events")
+}
+
+model Payment {
+  id                 String        @id @default(uuid())
+  paymentDisplayId   String        @unique
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  amount             Int
+  paymentType        PaymentType
+  status             PaymentStatus @default(CREATED)
+  senderUserId       String?
+  receiverBankId     String?
+  patientId          String?
+  donorId            String?
+  transferFormAId    String?
+  donationEventId    String?
+  metadata           Json?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  senderUser    User?          @relation("SenderPayments", fields: [senderUserId], references: [id])
+  receiverBank  BloodBank?     @relation("ReceiverBankPayments", fields: [receiverBankId], references: [id])
+  patient       Patient?       @relation(fields: [patientId], references: [id])
+  donor         Donor?         @relation(fields: [donorId], references: [id])
+  transferFormA TransferFormA? @relation(fields: [transferFormAId], references: [id])
+  donationEvent DonationEvent? @relation(fields: [donationEventId], references: [id])
+
+  @@index([paymentType, status])
+  @@map("payments")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  ipAddress  String?
+  diff       Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
