@@ -26,6 +26,9 @@ const recommendationRoutes = require('./modules/recommendation/recommendation.ro
 
 const app = express();
 
+// Trust the first proxy hop so express-rate-limit can read X-Forwarded-For correctly
+app.set('trust proxy', 1);
+
 // Security
 app.use(helmet());
 app.use(cors({

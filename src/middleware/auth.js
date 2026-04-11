@@ -17,6 +17,7 @@ async function authenticate(req, res, next) {
     req.user = payload;
     next();
   } catch (err) {
+    console.log(err)
     return sendError(res, 401, 'INVALID_TOKEN', 'Invalid or expired token');
   }
 }

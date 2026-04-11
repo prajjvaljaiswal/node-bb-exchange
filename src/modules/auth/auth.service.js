@@ -161,7 +161,12 @@ async function login(email, password) {
 }
 
 async function refresh(refreshToken) {
-  const payload = verifyRefreshToken(refreshToken);
+  let payload;
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch {
+    throw Object.assign(new Error('Invalid refresh token'), { status: 401, code: 'INVALID_REFRESH_TOKEN' });
+  }
 
   const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
   if (!stored || stored.expiresAt < new Date()) {

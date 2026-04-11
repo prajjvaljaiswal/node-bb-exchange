@@ -1,12 +1,13 @@
 const authService = require('./auth.service');
 const { sendSuccess, sendCreated } = require('../../utils/responseFormatter');
+const prisma = require('../../config/database');
 
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  sameSite: 'Strict',
+  sameSite: process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax',
   secure: process.env.NODE_ENV === 'production',
   maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: '/api/v1/auth/refresh',
+  path: '/',
 };
 
 async function registerBloodBank(req, res, next) {
@@ -53,7 +54,7 @@ async function logout(req, res, next) {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     await authService.logout(req.user.id, token);
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken', REFRESH_COOKIE_OPTIONS);
     sendSuccess(res, { message: 'Logged out successfully' });
   } catch (err) { next(err); }
 }
@@ -82,7 +83,16 @@ async function resetPassword(req, res, next) {
 async function me(req, res, next) {
   try {
     const { id, email, role, isEmailVerified, bloodBankId } = req.user;
-    sendSuccess(res, { id, email, role, isEmailVerified, bloodBankId });
+    let donorId = null;
+    let patientId = null;
+    if (role === 'DONOR') {
+      const donor = await prisma.donor.findUnique({ where: { userId: id }, select: { id: true } });
+      donorId = donor?.id || null;
+    } else if (role === 'PATIENT') {
+      const patient = await prisma.patient.findUnique({ where: { userId: id }, select: { id: true } });
+      patientId = patient?.id || null;
+    }
+    sendSuccess(res, { id, email, role, isEmailVerified, bloodBankId, donorId, patientId });
   } catch (err) { next(err); }
 }
 

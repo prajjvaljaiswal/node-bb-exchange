@@ -17,11 +17,13 @@ function generateAccessToken(user) {
 }
 
 function generateRefreshToken(userId) {
-  return jwt.sign(
+  const token = jwt.sign(
     { id: userId, jti: uuidv4() },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d' }
   );
+  console.log("gen token: ", token)
+  return token;
 }
 
 function verifyAccessToken(token) {
@@ -29,6 +31,7 @@ function verifyAccessToken(token) {
 }
 
 function verifyRefreshToken(token) {
+  console.log("verifying token: ", token)
   return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 }
 
