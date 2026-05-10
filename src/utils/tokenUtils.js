@@ -9,6 +9,7 @@ function generateAccessToken(user) {
       role: user.role,
       isEmailVerified: user.isEmailVerified,
       bloodBankId: user.bloodBankAdmin?.bloodBankId || null,
+      bloodBankAdminId: user.bloodBankAdmin?.id || null,
       jti: uuidv4(),
     },
     process.env.JWT_ACCESS_SECRET,

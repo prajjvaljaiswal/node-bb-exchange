@@ -22,7 +22,7 @@ async function validateDonorEligibility(donor) {
 }
 
 async function createDonation(data, staffAdminId, donatingBankId) {
-  const { donorId, patientId, beneficiaryBankId, bloodGroup, organisationOfDrive, donationDate } = data;
+  const { donorId, patientId, organisationOfDrive, donationDate } = data;
 
   // 1. Validate donor
   const donor = await prisma.donor.findUnique({ where: { id: donorId } });
@@ -36,6 +36,12 @@ async function createDonation(data, staffAdminId, donatingBankId) {
   });
   if (!patient || patient.status !== 'ACTIVE') {
     throw Object.assign(new Error('Patient not available'), { status: 400, code: 'PATIENT_UNAVAILABLE' });
+  }
+
+  const bloodGroup = data.bloodGroup || donor.bloodGroup;
+  const beneficiaryBankId = data.beneficiaryBankId || patient.registeredBloodBankId;
+  if (!beneficiaryBankId) {
+    throw Object.assign(new Error('Patient has no registered blood bank'), { status: 400, code: 'MISSING_BENEFICIARY_BANK' });
   }
 
   // 3. Generate IDs

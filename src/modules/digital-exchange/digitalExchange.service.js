@@ -1,3 +1,4 @@
+const { Prisma } = require('@prisma/client');
 const prisma = require('../../config/database');
 const { withLock } = require('../../middleware/lock');
 const { getIO } = require('../../config/socket');
@@ -141,16 +142,13 @@ async function executeUnilateral(proposalId) {
 }
 
 async function history(bankId) {
-  return prisma.digitalExchangeEvent.findMany({
-    where: {
-      OR: [
-        { initiatedByBankId: bankId },
-        { participantBanks: { has: bankId } },
-      ],
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
+  return prisma.$queryRaw`
+    SELECT * FROM digital_exchange_events
+    WHERE initiatedByBankId = ${bankId}
+       OR JSON_CONTAINS(participantBanks, ${JSON.stringify(bankId)}, '$')
+    ORDER BY createdAt DESC
+    LIMIT 50
+  `;
 }
 
 module.exports = { proposeBilateral, executeBilateral, proposeUnilateral, consentUnilateral, executeUnilateral, history };

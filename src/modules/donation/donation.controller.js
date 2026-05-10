@@ -3,7 +3,7 @@ const { sendSuccess, sendCreated } = require('../../utils/responseFormatter');
 
 async function createDonation(req, res, next) {
   try {
-    const result = await service.createDonation(req.body, req.user.id, req.user.bloodBankId);
+    const result = await service.createDonation(req.body, req.user.bloodBankAdminId, req.user.bloodBankId);
     sendCreated(res, result);
   } catch (err) { next(err); }
 }

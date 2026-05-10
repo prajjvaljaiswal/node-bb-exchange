@@ -9,8 +9,8 @@ async function listDonors(query) {
   if (query.state) where.state = query.state;
   if (query.search) {
     where.OR = [
-      { name: { contains: query.search, mode: 'insensitive' } },
-      { email: { contains: query.search, mode: 'insensitive' } },
+      { name: { contains: query.search, lte: 'insensitive' } },
+      { email: { contains: query.search, lte: 'insensitive' } },
     ];
   }
   const [total, items] = await Promise.all([

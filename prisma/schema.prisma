@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -167,7 +167,7 @@ model User {
 model RefreshToken {
   id        String   @id @default(uuid())
   userId    String
-  token     String   @unique
+  token     String   @db.Text
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -594,7 +594,7 @@ model DigitalExchangeEvent {
   id                   String         @id @default(uuid())
   exchangeType         ExchangeType
   initiatedByBankId    String
-  participantBanks     String[]
+  participantBanks     Json?
   balanceSheetChanges  Json?
   status               ExchangeStatus @default(PROPOSED)
   createdAt            DateTime       @default(now())

@@ -168,7 +168,7 @@ async function refresh(refreshToken) {
     throw Object.assign(new Error('Invalid refresh token'), { status: 401, code: 'INVALID_REFRESH_TOKEN' });
   }
 
-  const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
+  const stored = await prisma.refreshToken.findFirst({ where: { token: refreshToken } });
   if (!stored || stored.expiresAt < new Date()) {
     throw Object.assign(new Error('Invalid refresh token'), { status: 401, code: 'INVALID_REFRESH_TOKEN' });
   }
@@ -183,7 +183,7 @@ async function refresh(refreshToken) {
   }
 
   // Rotate refresh token
-  await prisma.refreshToken.delete({ where: { token: refreshToken } });
+  await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
   const newRefreshToken = generateRefreshToken(user.id);
   await prisma.refreshToken.create({
     data: {

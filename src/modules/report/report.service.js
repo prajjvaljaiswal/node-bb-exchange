@@ -1,3 +1,4 @@
+const { Prisma } = require('@prisma/client');
 const prisma = require('../../config/database');
 const pdfService = require('../../services/pdf.service');
 
@@ -89,17 +90,18 @@ async function physicalTransferReport(bankId, query) {
 
 async function digitalTransferReport(bankId, query) {
   const { from, to } = query;
-  const where = {
-    OR: [{ initiatedByBankId: bankId }, { participantBanks: { has: bankId } }],
-    status: 'EXECUTED',
-  };
-  if (from) where.createdAt = { gte: new Date(from) };
-  if (to) where.createdAt = { ...where.createdAt, lte: new Date(to) };
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
 
-  return prisma.digitalExchangeEvent.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-  });
+  return prisma.$queryRaw`
+    SELECT * FROM digital_exchange_events
+    WHERE (initiatedByBankId = ${bankId}
+       OR JSON_CONTAINS(participantBanks, ${JSON.stringify(bankId)}, '$'))
+      AND status = 'EXECUTED'
+      ${fromDate ? Prisma.sql`AND createdAt >= ${fromDate}` : Prisma.empty}
+      ${toDate ? Prisma.sql`AND createdAt <= ${toDate}` : Prisma.empty}
+    ORDER BY createdAt DESC
+  `;
 }
 
 module.exports = { donationsReport, receivablesReport, deliverablesReport, physicalTransferReport, digitalTransferReport };
