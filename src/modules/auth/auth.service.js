@@ -10,7 +10,8 @@ const BCRYPT_ROUNDS = process.env.DEV_MODE === 'true' ? 4 : (parseInt(process.en
 async function registerBloodBank(data) {
   const { email, password, bankName, registrationNo, registrationValidUpto, gstNo,
     address, city, district, state, pincode, contactMobile, bankEmail,
-    adminName, adminDesignation, adminMobile } = data;
+    adminName, adminDesignation, adminMobile,
+    ownership, hospitalName, bankAccountName, bankAccountNo, bankAccountIFSC, bankAccountUPI } = data;
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const emailVerifyToken = uuidv4();
@@ -38,6 +39,12 @@ async function registerBloodBank(data) {
         pincode,
         contactMobile,
         email: bankEmail,
+        ownership: ownership || null,
+        hospitalName: hospitalName || null,
+        bankAccountName: bankAccountName || null,
+        bankAccountNo: bankAccountNo || null,
+        bankAccountIFSC: bankAccountIFSC || null,
+        bankAccountUPI: bankAccountUPI || null,
       },
     });
 
@@ -61,11 +68,12 @@ async function registerBloodBank(data) {
 }
 
 async function registerDonor(data) {
-  const { email, password, name, age, sex, mobile, weight, bloodGroup, address, state, pincode,
-    bankAccountName, bankAccountIFSC, bankAccountUPI } = data;
+  const { email, password, name, age, sex, nationality, mobile, weight, bloodGroup, address, state, pincode,
+    bankAccountName, bankAccountNo, bankAccountIFSC, bankAccountUPI } = data;
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const emailVerifyToken = uuidv4();
+  const donorDisplayId = `DON-${Date.now().toString(36).toUpperCase().slice(-6)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -73,8 +81,15 @@ async function registerDonor(data) {
     });
 
     await tx.donor.create({
-      data: { userId: user.id, name, age, sex, mobile, email, weight, bloodGroup, address, state, pincode,
-        bankAccountName, bankAccountIFSC, bankAccountUPI },
+      data: {
+        userId: user.id, donorDisplayId, name, age, sex,
+        nationality: nationality || 'Indian',
+        mobile, email, weight, bloodGroup, address, state, pincode,
+        bankAccountName: bankAccountName || null,
+        bankAccountNo: bankAccountNo || null,
+        bankAccountIFSC: bankAccountIFSC || null,
+        bankAccountUPI: bankAccountUPI || null,
+      },
     });
 
     return user;
@@ -85,9 +100,11 @@ async function registerDonor(data) {
 }
 
 async function registerPatient(data) {
-  const { email, password, name, age, sex, bloodGroup, unitsRequired, hospitalName, doctorName,
+  const { email, password, name, age, sex, bloodGroup, unitsRequired,
+    address, district, state, nationality,
+    hospitalName, hospitalType, doctorName,
     disease, contactPerson1, contactPerson2, contactPerson3, mobile, modeOfPayment,
-    bankAccountName, bankAccountIFSC, bankAccountUPI, registeredBloodBankId } = data;
+    bankAccountName, bankAccountNo, bankAccountIFSC, bankAccountUPI, registeredBloodBankId } = data;
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const emailVerifyToken = uuidv4();
@@ -107,19 +124,25 @@ async function registerPatient(data) {
         sex,
         bloodGroup,
         unitsRequired,
+        address: address || null,
+        district: district || null,
+        state: state || null,
+        nationality: nationality || 'Indian',
         hospitalName,
-        doctorName,
-        disease,
-        contactPerson1,
-        contactPerson2,
-        contactPerson3,
+        hospitalType: hospitalType || null,
+        doctorName: doctorName || null,
+        disease: disease || null,
+        contactPerson1: contactPerson1 || null,
+        contactPerson2: contactPerson2 || null,
+        contactPerson3: contactPerson3 || null,
         mobile,
-        email,
+        email: email || null,
         modeOfPayment: modeOfPayment || 'ONLINE',
-        bankAccountName,
-        bankAccountIFSC,
-        bankAccountUPI,
-        registeredBloodBankId,
+        bankAccountName: bankAccountName || null,
+        bankAccountNo: bankAccountNo || null,
+        bankAccountIFSC: bankAccountIFSC || null,
+        bankAccountUPI: bankAccountUPI || null,
+        registeredBloodBankId: registeredBloodBankId || null,
         status: 'PENDING_PAYMENT',
       },
     });

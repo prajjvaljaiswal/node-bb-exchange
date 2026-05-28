@@ -1,5 +1,12 @@
 const service = require('./patient.service');
-const { sendSuccess } = require('../../utils/responseFormatter');
+const { sendSuccess, sendCreated } = require('../../utils/responseFormatter');
+
+async function createPatient(req, res, next) {
+  try {
+    const result = await service.createPatient(req.body, req.user.bloodBankId);
+    sendCreated(res, result);
+  } catch (err) { next(err); }
+}
 
 async function listPatients(req, res, next) {
   try {
@@ -36,4 +43,4 @@ async function fulfilPatient(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient };
+module.exports = { createPatient, listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient };

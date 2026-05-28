@@ -1,27 +1,59 @@
 const { Prisma } = require('@prisma/client');
 const prisma = require('../../config/database');
 const pdfService = require('../../services/pdf.service');
+const emailService = require('../../services/email.service');
 
-async function donationsReport(query) {
-  const { from, to, bloodGroup, bloodBankId, format = 'json' } = query;
+async function donationsReport(query, adminUser = null) {
+  const { date, from, to, bloodBankId, format = 'json' } = query;
   const where = {};
-  if (from) where.donationDate = { gte: new Date(from) };
-  if (to) where.donationDate = { ...where.donationDate, lte: new Date(to) };
+
+  // Single-date filter (Module 4) takes precedence over from/to range
+  if (date) {
+    const d = new Date(date);
+    const start = new Date(d); start.setHours(0, 0, 0, 0);
+    const end = new Date(d); end.setHours(23, 59, 59, 999);
+    where.donationDate = { gte: start, lte: end };
+  } else {
+    if (from) where.donationDate = { gte: new Date(from) };
+    if (to) where.donationDate = { ...where.donationDate, lte: new Date(to) };
+  }
+
   if (bloodBankId) where.bloodBankId = bloodBankId;
 
   const donations = await prisma.donationEvent.findMany({
     where,
     include: {
-      donor: { select: { name: true, bloodGroup: true } },
+      donor: { select: { id: true, name: true, bloodGroup: true, mobile: true } },
       patient: { select: { name: true, patientDisplayId: true } },
       donorCard: { select: { donorCardDisplayId: true, bloodGroup: true } },
-      bloodBank: { select: { name: true } },
+      bloodBank: { select: { name: true, email: true } },
     },
-    orderBy: { donationDate: 'desc' },
+    orderBy: { donationDate: 'asc' },
   });
 
+  // Email-to-admin mode (Module 4: "send yourself a copy")
+  if (adminUser) {
+    const bank = bloodBankId
+      ? await prisma.bloodBank.findUnique({ where: { id: bloodBankId }, select: { name: true } })
+      : null;
+    const bankName = bank?.name || 'All Banks';
+    const dateLabel = date
+      ? new Date(date).toLocaleDateString('en-IN')
+      : (from ? new Date(from).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'));
+
+    const pdfBuffer = await pdfService.generateDateWiseDonationsReport(donations, { bankName, date });
+    await emailService.sendDonationReportEmail(adminUser.email, bankName, dateLabel, pdfBuffer);
+    return { message: `Report emailed to ${adminUser.email}`, totalDonations: donations.length };
+  }
+
   if (format === 'pdf') {
-    return pdfService.generateDonationsReport(donations, { from, to, bloodBankId });
+    const bank = bloodBankId
+      ? await prisma.bloodBank.findUnique({ where: { id: bloodBankId }, select: { name: true } })
+      : null;
+    return pdfService.generateDateWiseDonationsReport(donations, {
+      bankName: bank?.name || 'All Banks',
+      date: date || from,
+    });
   }
 
   return donations;

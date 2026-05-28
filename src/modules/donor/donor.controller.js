@@ -1,5 +1,5 @@
 const service = require('./donor.service');
-const { sendSuccess } = require('../../utils/responseFormatter');
+const { sendSuccess, sendCreated } = require('../../utils/responseFormatter');
 
 async function listDonors(req, res, next) {
   try {
@@ -36,4 +36,25 @@ async function selectPatient(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listDonors, getDonor, getDonorCards, getEligiblePatients, selectPatient };
+async function createDonor(req, res, next) {
+  try {
+    const donor = await service.createDonor(req.body, req.user.bloodBankId);
+    sendCreated(res, donor);
+  } catch (err) { next(err); }
+}
+
+async function updateDonor(req, res, next) {
+  try {
+    const donor = await service.updateDonor(req.params.id, req.body);
+    sendSuccess(res, donor);
+  } catch (err) { next(err); }
+}
+
+async function setDonorAuthStatus(req, res, next) {
+  try {
+    const result = await service.setDonorAuthStatus(req.params.id, req.body.isActive);
+    sendSuccess(res, result);
+  } catch (err) { next(err); }
+}
+
+module.exports = { listDonors, getDonor, getDonorCards, getEligiblePatients, selectPatient, createDonor, updateDonor, setDonorAuthStatus };

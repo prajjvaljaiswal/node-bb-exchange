@@ -115,6 +115,51 @@ async function sendFormBDispatchNotification(email, bankName, formDisplayId, dis
   ));
 }
 
+async function sendPatientRegistration(email, name, patientDisplayId, tempPassword) {
+  await send(email, 'Patient Registration — Bloodexchange.in', brandedHtml('Patient Registered',
+    `<p>Dear <strong>${name}</strong>,</p>
+     <p>You have been registered on Bloodexchange.in. Your Patient ID is:</p>
+     <p style="font-size:20px;font-weight:700;color:#B91C1C"><code>${patientDisplayId}</code></p>
+     <p>Login credentials:</p>
+     <p>Email: <code>${email}</code><br>Temporary Password: <code>${tempPassword}</code></p>
+     <p>Please login and complete the registration fee payment to activate your blood request.</p>
+     <a class="btn" href="${BASE_URL}/login">Login to Portal</a>
+     <p style="font-size:12px;color:#888">Please change your password after first login.</p>`
+  ));
+}
+
+async function sendDonorRegistration(email, name, donorDisplayId, tempPassword) {
+  await send(email, 'Donor Registration — Bloodexchange.in', brandedHtml('Donor Account Created',
+    `<p>Dear <strong>${name}</strong>,</p>
+     <p>You have been registered as a donor on Bloodexchange.in. Your Donor ID is:</p>
+     <p style="font-size:20px;font-weight:700;color:#B91C1C"><code>${donorDisplayId}</code></p>
+     <p>Login credentials:</p>
+     <p>Email: <code>${email}</code><br>Temporary Password: <code>${tempPassword}</code></p>
+     <p>Please login to view your donor cards and browse patients.</p>
+     <a class="btn" href="${BASE_URL}/login">Login to Portal</a>
+     <p style="font-size:12px;color:#888">Please change your password after first login. Your account will be active after blood bank admin authentication.</p>`
+  ));
+}
+
+async function sendDonationReportEmail(email, bankName, date, pdfBuffer) {
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: `Date-Wise Donation Report — ${bankName} — ${date}`,
+    html: brandedHtml('Donation Report', `
+      <p>Dear <strong>${bankName}</strong>,</p>
+      <p>Please find attached the Date-Wise Donations Report for <strong>${date}</strong>.</p>
+      <p>This report lists all donations recorded on the selected date with full donor details, donation type, blood group compatibility, and remarks.</p>
+      <p style="font-size:12px;color:#888">Generated automatically by Bloodexchange.in reporting system.</p>
+    `),
+    attachments: [{
+      filename: `donations-${date}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf',
+    }],
+  });
+}
+
 module.exports = {
   sendEmailVerification,
   sendPasswordReset,
@@ -125,4 +170,7 @@ module.exports = {
   sendDailyBalanceSheet,
   sendTransferFormANotification,
   sendFormBDispatchNotification,
+  sendPatientRegistration,
+  sendDonorRegistration,
+  sendDonationReportEmail,
 };

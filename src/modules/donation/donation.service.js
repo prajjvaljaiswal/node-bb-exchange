@@ -22,7 +22,7 @@ async function validateDonorEligibility(donor) {
 }
 
 async function createDonation(data, staffAdminId, donatingBankId) {
-  const { donorId, patientId, organisationOfDrive, donationDate } = data;
+  const { donorId, patientId, organisationOfDrive, donationDate, donationType, remarks } = data;
 
   // 1. Validate donor
   const donor = await prisma.donor.findUnique({ where: { id: donorId } });
@@ -76,11 +76,17 @@ async function createDonation(data, staffAdminId, donatingBankId) {
       data: { donorCardId: donorCard.id, donorId },
     });
 
-    // Update donor card with bank name
+    // Update donor card with bank name and authority signature
     const bank = await tx.bloodBank.findUnique({ where: { id: donatingBankId }, select: { name: true } });
+    const staffAdmin = staffAdminId
+      ? await tx.bloodBankAdmin.findUnique({ where: { id: staffAdminId }, select: { name: true } })
+      : null;
     await tx.donorCard.update({
       where: { id: donorCard.id },
-      data: { bloodBankName: bank?.name || '' },
+      data: {
+        bloodBankName: bank?.name || '',
+        bloodBankAuthoritySignature: staffAdmin?.name || null,
+      },
     });
 
     // Whole blood inventory
@@ -141,6 +147,8 @@ async function createDonation(data, staffAdminId, donatingBankId) {
         patientId,
         staffAdminId,
         donationDate: donationDate_,
+        donationType: donationType || 'VOLUNTARY',
+        remarks: remarks || null,
       },
     });
 

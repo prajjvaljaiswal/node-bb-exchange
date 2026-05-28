@@ -1,5 +1,78 @@
 const prisma = require('../../config/database');
+const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, paginatedResponse } = require('../../utils/pagination');
+const emailService = require('../../services/email.service');
+
+const BCRYPT_ROUNDS = process.env.DEV_MODE === 'true' ? 4 : (parseInt(process.env.BCRYPT_ROUNDS) || 12);
+
+async function createPatient(data, adminBloodBankId) {
+  const { name, age, sex, bloodGroup, unitsRequired,
+    address, district, state, nationality,
+    hospitalName, hospitalType, doctorName,
+    disease, contactPerson1, contactPerson2, contactPerson3,
+    mobile, email, modeOfPayment,
+    bankAccountName, bankAccountNo, bankAccountIFSC, bankAccountUPI,
+    registeredBloodBankId } = data;
+
+  const patientDisplayId = `PAT-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  const tempPassword = Math.random().toString(36).substr(2, 10);
+  const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
+  const patientEmail = email || `${patientDisplayId.toLowerCase()}@bloodexchange.in`;
+  const emailVerifyToken = uuidv4();
+
+  const result = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email: patientEmail,
+        passwordHash,
+        role: 'PATIENT',
+        isEmailVerified: !!email,
+        emailVerifyToken: email ? emailVerifyToken : null,
+      },
+    });
+
+    const patient = await tx.patient.create({
+      data: {
+        userId: user.id,
+        patientDisplayId,
+        name,
+        age,
+        sex,
+        bloodGroup,
+        unitsRequired,
+        address: address || null,
+        district: district || null,
+        state: state || null,
+        nationality: nationality || 'Indian',
+        hospitalName,
+        hospitalType: hospitalType || null,
+        doctorName: doctorName || null,
+        disease: disease || null,
+        contactPerson1: contactPerson1 || null,
+        contactPerson2: contactPerson2 || null,
+        contactPerson3: contactPerson3 || null,
+        mobile,
+        email: email || null,
+        modeOfPayment: modeOfPayment || 'ONLINE',
+        bankAccountName: bankAccountName || null,
+        bankAccountNo: bankAccountNo || null,
+        bankAccountIFSC: bankAccountIFSC || null,
+        bankAccountUPI: bankAccountUPI || null,
+        registeredBloodBankId: registeredBloodBankId || adminBloodBankId || null,
+        status: 'PENDING_PAYMENT',
+      },
+    });
+
+    return { patient, patientEmail, tempPassword };
+  });
+
+  if (email) {
+    await emailService.sendPatientRegistration(email, name, patientDisplayId, tempPassword);
+  }
+
+  return { patient: result.patient, message: 'Patient registered. Login credentials sent to patient.' };
+}
 
 async function listPatients(query) {
   const { page, limit, skip } = getPaginationParams(query);
@@ -15,8 +88,9 @@ async function listPatients(query) {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, patientDisplayId: true, name: true, bloodGroup: true,
-        unitsRequired: true, status: true, hospitalName: true,
-        registeredBloodBank: { select: { id: true, name: true } },
+        unitsRequired: true, status: true, hospitalName: true, hospitalType: true,
+        address: true, district: true, state: true, mobile: true,
+        registeredBloodBank: { select: { id: true, name: true, city: true } },
         createdAt: true,
       },
     }),
@@ -80,4 +154,4 @@ async function fulfilPatient(patientId, adminId) {
   });
 }
 
-module.exports = { listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient };
+module.exports = { createPatient, listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient };

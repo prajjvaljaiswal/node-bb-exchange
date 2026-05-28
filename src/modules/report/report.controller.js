@@ -3,13 +3,24 @@ const { sendSuccess } = require('../../utils/responseFormatter');
 
 async function donationsReport(req, res, next) {
   try {
-    const data = await service.donationsReport({ ...req.query, bloodBankId: req.query.bloodBankId || req.user.bloodBankId });
-    if (req.query.format === 'pdf') {
-      res.set('Content-Type', 'application/pdf');
-      res.set('Content-Disposition', `attachment; filename=donations-report.pdf`);
-      return res.send(data);
+    const bloodBankId = req.query.bloodBankId || req.user.bloodBankId;
+    const emailToAdmin = req.query.email === 'true';
+    const adminUser = emailToAdmin ? req.user : null;
+
+    const result = await service.donationsReport({ ...req.query, bloodBankId }, adminUser);
+
+    if (emailToAdmin) {
+      return sendSuccess(res, result);
     }
-    sendSuccess(res, data);
+
+    if (req.query.format === 'pdf') {
+      const date = req.query.date || req.query.from || new Date().toISOString().slice(0, 10);
+      res.set('Content-Type', 'application/pdf');
+      res.set('Content-Disposition', `attachment; filename=donations-${date}.pdf`);
+      return res.send(result);
+    }
+
+    sendSuccess(res, result);
   } catch (err) { next(err); }
 }
 

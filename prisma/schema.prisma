@@ -134,10 +134,28 @@ enum ModeOfPayment {
   NEFT
 }
 
+enum BloodBankOwnership {
+  GOVERNMENT
+  SEMI_PRIVATE
+  PRIVATE
+  WELFARE_TRUST
+  OTHER
+}
+
+enum HospitalType {
+  GOVERNMENT
+  PRIVATE
+}
+
 enum UrgencyLevel {
   ROUTINE
   URGENT
   EMERGENCY
+}
+
+enum DonationType {
+  VOLUNTARY
+  REPLACEMENT
 }
 
 model User {
@@ -189,7 +207,10 @@ model BloodBank {
   pincode               String
   contactMobile         String
   email                 String    @unique
+  ownership             BloodBankOwnership?
+  hospitalName          String?
   bankAccountName       String?
+  bankAccountNo         String?
   bankAccountIFSC       String?
   bankAccountUPI        String?
   isActive              Boolean   @default(false)
@@ -270,25 +291,28 @@ model BloodBankGroupMember {
 }
 
 model Donor {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  name            String
-  age             Int
-  sex             String
-  nationality     String   @default("Indian")
-  mobile          String
-  email           String
-  weight          Float
-  bloodGroup      String
-  address         String
-  state           String
-  pincode         String
-  bankAccountName String?
-  bankAccountIFSC String?
-  bankAccountUPI  String?
-  lastDonationAt  DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                    String    @id @default(uuid())
+  userId                String    @unique
+  donorDisplayId        String?   @unique
+  name                  String
+  age                   Int
+  sex                   String
+  nationality           String    @default("Indian")
+  mobile                String
+  email                 String
+  weight                Float
+  bloodGroup            String
+  address               String
+  state                 String
+  pincode               String
+  bankAccountName       String?
+  bankAccountNo         String?
+  bankAccountIFSC       String?
+  bankAccountUPI        String?
+  registeredBloodBankId String?
+  lastDonationAt        DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   donorCards  DonorCard_Donor[]
@@ -307,16 +331,22 @@ model Patient {
   sex                  String
   bloodGroup           String
   unitsRequired        Int
+  address              String?
+  district             String?
+  state                String?
+  nationality          String?       @default("Indian")
   hospitalName         String
-  doctorName           String
+  hospitalType         HospitalType?
+  doctorName           String?
   disease              String?
   contactPerson1       String?
   contactPerson2       String?
   contactPerson3       String?
   mobile               String
-  email                String
+  email                String?
   modeOfPayment        ModeOfPayment @default(ONLINE)
   bankAccountName      String?
+  bankAccountNo        String?
   bankAccountIFSC      String?
   bankAccountUPI       String?
   registrationFeePaid  Boolean       @default(false)
@@ -467,6 +497,8 @@ model DonationEvent {
   patientId          String?
   staffAdminId       String?
   donationDate       DateTime
+  donationType       DonationType @default(VOLUNTARY)
+  remarks            String?
   cycleDetected      Boolean  @default(false)
   cycleRefundIssued  Boolean  @default(false)
   createdAt          DateTime @default(now())
