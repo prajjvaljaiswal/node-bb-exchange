@@ -154,4 +154,23 @@ async function fulfilPatient(patientId, adminId) {
   });
 }
 
-module.exports = { createPatient, listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient };
+// Module 2 plan: "Edit/update Requirement: change blood-bank-id-2 and no. of units required"
+async function updatePatient(patientId, data) {
+  const { bloodGroup, unitsRequired, registeredBloodBankId, doctorName, disease, hospitalName } = data;
+  const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+  if (!patient) throw Object.assign(new Error('Patient not found'), { status: 404, code: 'NOT_FOUND' });
+
+  return prisma.patient.update({
+    where: { id: patientId },
+    data: {
+      ...(bloodGroup !== undefined && { bloodGroup }),
+      ...(unitsRequired !== undefined && { unitsRequired: parseInt(unitsRequired) }),
+      ...(registeredBloodBankId !== undefined && { registeredBloodBankId }),
+      ...(doctorName !== undefined && { doctorName }),
+      ...(disease !== undefined && { disease }),
+      ...(hospitalName !== undefined && { hospitalName }),
+    },
+  });
+}
+
+module.exports = { createPatient, listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient, updatePatient };

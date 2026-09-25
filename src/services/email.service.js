@@ -160,6 +160,29 @@ async function sendDonationReportEmail(email, bankName, date, pdfBuffer) {
   });
 }
 
+async function sendPatientDonorSelection(patientEmail, patientName, donorName, patientDisplayId) {
+  await send(patientEmail, 'A Donor Has Selected You — Bloodexchange.in', brandedHtml('Donor Found',
+    `<p>Dear <strong>${patientName}</strong>,</p>
+     <p>Great news! A donor named <strong>${donorName}</strong> has indicated their intent to donate blood for you.</p>
+     <p>Your Patient ID: <code>${patientDisplayId}</code></p>
+     <p>The donor will visit a registered blood bank to complete the donation. Blood bank staff will contact the relevant parties and update your request status.</p>
+     <p>Please stay in touch with the blood bank registered for your request.</p>
+     <a class="btn" href="${BASE_URL}/patient/dashboard">View Your Status</a>`
+  ));
+}
+
+async function sendPatientReEngagement(patientEmail, patientName, patientDisplayId) {
+  await send(patientEmail, 'Is Your Blood Requirement Still Active? — Bloodexchange.in', brandedHtml('Requirement Check',
+    `<p>Dear <strong>${patientName}</strong>,</p>
+     <p>Your blood requirement listing on Bloodexchange.in is still active. We check in every 30 days to ensure our records are up to date.</p>
+     <p>Patient ID: <code>${patientDisplayId}</code></p>
+     <p>If your blood requirement has been fulfilled or is no longer needed, please inform your blood bank admin so your listing can be removed.</p>
+     <p>If you still need blood, no action is required — your listing remains active.</p>
+     <a class="btn" href="${BASE_URL}/patient/dashboard">View Your Status</a>
+     <p style="font-size:12px;color:#888">If you no longer require blood, contact your registered blood bank to deactivate your listing.</p>`
+  ));
+}
+
 module.exports = {
   sendEmailVerification,
   sendPasswordReset,
@@ -173,4 +196,6 @@ module.exports = {
   sendPatientRegistration,
   sendDonorRegistration,
   sendDonationReportEmail,
+  sendPatientDonorSelection,
+  sendPatientReEngagement,
 };

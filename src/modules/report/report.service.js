@@ -3,7 +3,7 @@ const prisma = require('../../config/database');
 const pdfService = require('../../services/pdf.service');
 const emailService = require('../../services/email.service');
 
-async function donationsReport(query, adminUser = null) {
+async function donationsReport(query, adminUser = null, customEmailTo = null) {
   const { date, from, to, bloodBankId, format = 'json' } = query;
   const where = {};
 
@@ -31,8 +31,8 @@ async function donationsReport(query, adminUser = null) {
     orderBy: { donationDate: 'asc' },
   });
 
-  // Email-to-admin mode (Module 4: "send yourself a copy")
-  if (adminUser) {
+  // Email mode: to logged-in admin or to any custom email address (Module 7: "send to self or to anyone")
+  if (adminUser || customEmailTo) {
     const bank = bloodBankId
       ? await prisma.bloodBank.findUnique({ where: { id: bloodBankId }, select: { name: true } })
       : null;
@@ -42,8 +42,9 @@ async function donationsReport(query, adminUser = null) {
       : (from ? new Date(from).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'));
 
     const pdfBuffer = await pdfService.generateDateWiseDonationsReport(donations, { bankName, date });
-    await emailService.sendDonationReportEmail(adminUser.email, bankName, dateLabel, pdfBuffer);
-    return { message: `Report emailed to ${adminUser.email}`, totalDonations: donations.length };
+    const targetEmail = customEmailTo || adminUser.email;
+    await emailService.sendDonationReportEmail(targetEmail, bankName, dateLabel, pdfBuffer);
+    return { message: `Report emailed to ${targetEmail}`, totalDonations: donations.length };
   }
 
   if (format === 'pdf') {

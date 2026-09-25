@@ -10,5 +10,6 @@ router.get('/:id', authenticate, controller.getPatient);
 router.post('/:id/confirm-registration', authenticate, controller.confirmRegistration);
 router.get('/:id/recommendation', authenticate, controller.getRecommendation);
 router.patch('/:id/fulfil', authenticate, authorize(ROLES.BLOOD_BANK_ADMIN), controller.fulfilPatient);
+router.patch('/:id', authenticate, authorize(ROLES.BLOOD_BANK_ADMIN), controller.updatePatient);
 
 module.exports = router;

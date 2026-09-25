@@ -53,6 +53,48 @@ function startCronJobs() {
   }, { timezone: process.env.REPORT_CRON_TIMEZONE || 'Asia/Kolkata' });
 
   console.log('[cron] Nightly balance sheet cron registered');
+
+  // Module 2: "Alternatively after every 30 days ask the patient by sending a message again if the requirement status is active"
+  // Run daily at 09:00 IST — checks patients active for exactly 30-day multiples
+  cron.schedule('0 9 * * *', async () => {
+    console.log('[cron] Running 30-day patient re-engagement check');
+    try {
+      const prisma = require('./config/database');
+      const emailService = require('./services/email.service');
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // Find ACTIVE patients whose requirement was last updated ~30 days ago
+      const patients = await prisma.patient.findMany({
+        where: {
+          status: 'ACTIVE',
+          email: { not: null },
+          updatedAt: { lte: thirtyDaysAgo },
+        },
+        select: { id: true, email: true, name: true, patientDisplayId: true },
+        take: 200,
+      });
+
+      for (const patient of patients) {
+        try {
+          if (patient.email) {
+            await emailService.sendPatientReEngagement(patient.email, patient.name, patient.patientDisplayId);
+            // Touch updatedAt so they don't get pinged again immediately
+            await prisma.patient.update({ where: { id: patient.id }, data: { updatedAt: new Date() } });
+          }
+        } catch (e) {
+          console.error(`[cron] Re-engagement email failed for patient ${patient.id}:`, e.message);
+        }
+      }
+
+      console.log(`[cron] Re-engagement emails sent to ${patients.length} patients`);
+    } catch (err) {
+      console.error('[cron] 30-day re-engagement cron failed:', err.message);
+    }
+  }, { timezone: process.env.REPORT_CRON_TIMEZONE || 'Asia/Kolkata' });
+
+  console.log('[cron] 30-day patient re-engagement cron registered');
 }
 
 process.on('unhandledRejection', (reason, promise) => {

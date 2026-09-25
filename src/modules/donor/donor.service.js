@@ -78,9 +78,18 @@ async function getEligiblePatients(donorId) {
 }
 
 async function selectPatient(donorId, patientId) {
-  const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+  const [patient, donor] = await Promise.all([
+    prisma.patient.findUnique({ where: { id: patientId } }),
+    prisma.donor.findUnique({ where: { id: donorId }, select: { name: true } }),
+  ]);
   if (!patient || patient.status !== 'ACTIVE') {
     throw Object.assign(new Error('Patient not available'), { status: 400, code: 'PATIENT_UNAVAILABLE' });
+  }
+  // Notify patient that a donor has selected them (Module 5 plan requirement)
+  if (patient.email) {
+    try {
+      await emailService.sendPatientDonorSelection(patient.email, patient.name, donor?.name || 'A donor', patient.patientDisplayId);
+    } catch {}
   }
   return { message: 'Patient selected. Please visit the blood bank to donate.', patient };
 }
@@ -152,14 +161,20 @@ async function updateDonor(donorId, data) {
   return prisma.donor.update({
     where: { id: donorId },
     data: {
-      name, age: parseInt(age), sex,
-      nationality: nationality || 'Indian',
-      mobile, weight: parseFloat(weight),
-      bloodGroup, address, state, pincode,
-      bankAccountName: bankAccountName || null,
-      bankAccountNo: bankAccountNo || null,
-      bankAccountIFSC: bankAccountIFSC || null,
-      bankAccountUPI: bankAccountUPI || null,
+      ...(name !== undefined && { name }),
+      ...(age !== undefined && { age: parseInt(age) }),
+      ...(sex !== undefined && { sex }),
+      ...(nationality !== undefined && { nationality }),
+      ...(mobile !== undefined && { mobile }),
+      ...(weight !== undefined && { weight: parseFloat(weight) }),
+      ...(bloodGroup !== undefined && { bloodGroup }),
+      ...(address !== undefined && { address }),
+      ...(state !== undefined && { state }),
+      ...(pincode !== undefined && { pincode }),
+      ...('bankAccountName' in data && { bankAccountName: bankAccountName || null }),
+      ...('bankAccountNo' in data && { bankAccountNo: bankAccountNo || null }),
+      ...('bankAccountIFSC' in data && { bankAccountIFSC: bankAccountIFSC || null }),
+      ...('bankAccountUPI' in data && { bankAccountUPI: bankAccountUPI || null }),
     },
   });
 }

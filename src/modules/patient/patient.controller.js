@@ -43,4 +43,11 @@ async function fulfilPatient(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { createPatient, listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient };
+async function updatePatient(req, res, next) {
+  try {
+    const patient = await service.updatePatient(req.params.id, req.body);
+    sendSuccess(res, patient);
+  } catch (err) { next(err); }
+}
+
+module.exports = { createPatient, listPatients, getPatient, confirmRegistration, getRecommendation, fulfilPatient, updatePatient };

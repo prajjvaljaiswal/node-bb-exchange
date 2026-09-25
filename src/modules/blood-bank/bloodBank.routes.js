@@ -4,7 +4,7 @@ const controller = require('./bloodBank.controller');
 const { authenticate, authorize } = require('../../middleware/auth');
 const { ROLES } = require('../../config/constants');
 
-router.get('/', authenticate, authorize(ROLES.PLATFORM_ADMIN), controller.listBanks);
+router.get('/', authenticate, authorize(ROLES.PLATFORM_ADMIN, ROLES.BLOOD_BANK_ADMIN, ROLES.DONOR), controller.listBanks);
 router.get('/:id', authenticate, controller.getBank);
 router.patch('/:id/approve', authenticate, authorize(ROLES.PLATFORM_ADMIN), controller.approveBank);
 router.patch('/:id/suspend', authenticate, authorize(ROLES.PLATFORM_ADMIN), controller.suspendBank);

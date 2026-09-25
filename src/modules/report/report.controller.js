@@ -5,11 +5,13 @@ async function donationsReport(req, res, next) {
   try {
     const bloodBankId = req.query.bloodBankId || req.user.bloodBankId;
     const emailToAdmin = req.query.email === 'true';
+    // Module 7: "send to self or to anyone a copy through an e-mail id"
+    const customEmailTo = req.query.emailTo || null;
     const adminUser = emailToAdmin ? req.user : null;
 
-    const result = await service.donationsReport({ ...req.query, bloodBankId }, adminUser);
+    const result = await service.donationsReport({ ...req.query, bloodBankId }, adminUser, customEmailTo);
 
-    if (emailToAdmin) {
+    if (emailToAdmin || customEmailTo) {
       return sendSuccess(res, result);
     }
 
